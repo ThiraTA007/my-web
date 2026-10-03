@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DFA ตรวจรหัสผ่าน</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f7f9;--card:#fff;--ink:#17262f;--mute:#5b6b75;--line:#d5dde2;--acc:#0e7c86;--ok:#17803d;--bad:#c0392b;--code:#e8eff2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10181d;--card:#172229;--ink:#e6eef2;--mute:#93a5af;--line:#2b3a43;--acc:#4cc2cc;--ok:#4cc77c;--bad:#ff7b6b;--code:#1f2d35}}
+:root[data-theme="dark"]{--bg:#10181d;--card:#172229;--ink:#e6eef2;--mute:#93a5af;--line:#2b3a43;--acc:#4cc2cc;--ok:#4cc77c;--bad:#ff7b6b;--code:#1f2d35}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:60px}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.75 "Sarabun","Noto Sans Thai",Tahoma,sans-serif}
+nav{position:sticky;top:env(safe-area-inset-top,0px);background:var(--card);border-bottom:1px solid var(--line);z-index:5;display:flex;gap:4px;overflow-x:auto;padding:8px 14px}
+nav a{color:var(--mute);text-decoration:none;padding:4px 12px;border-radius:6px;white-space:nowrap;font-size:15px}
+nav a:hover,nav a:focus-visible{background:var(--code);color:var(--ink);outline:none}
+main{max-width:860px;margin:0 auto;padding:0 18px 60px}
+header{padding:56px 0 24px}
+header small{color:var(--acc);font-weight:600}
+h1{font-size:clamp(32px,7vw,54px);line-height:1.15;margin:8px 0 14px;font-weight:800;letter-spacing:-.5px}
+h2{font-size:26px;margin:52px 0 10px}
+h2 span{color:var(--acc);margin-right:10px}
+h3{font-size:19px;margin:24px 0 6px}
+p{margin:8px 0}
+.lead{color:var(--mute);max-width:62ch}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;background:var(--card);border:1px solid var(--line);font-size:15.5px}
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:600}
+code,pre{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14.5px}
+code{background:var(--code);padding:1px 6px;border-radius:4px}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;line-height:1.6}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0}
+.stats div{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc);padding:12px 16px;border-radius:6px}
+.stats b{display:block;font-size:34px;line-height:1.2;color:var(--acc)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+input[type=text]{width:100%;font:inherit;font-family:ui-monospace,Menlo,Consolas,monospace;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+button{font:inherit;font-size:15px;padding:7px 14px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;cursor:pointer}
+button.p{background:var(--acc);border-color:var(--acc);color:#fff}
+button:hover{filter:brightness(.95)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chips button{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;padding:3px 10px}
+.state{font-size:18px;margin:12px 0}
+.badge{display:inline-block;padding:2px 12px;border-radius:99px;font-weight:600;font-size:15px;color:#fff}
+.acc{background:var(--ok)}.rej{background:var(--bad)}.run{background:var(--mute)}
+.ok{color:var(--ok);font-weight:600}.no{color:var(--bad);font-weight:600}
+footer{text-align:center;color:var(--mute);font-size:14px;padding:30px 0}
+</style>
+</head>
+<body>
+<nav>
+<a href="#problem">ปัญหา</a><a href="#alphabet">Σ</a><a href="#design">การออกแบบ</a><a href="#formal">นิยาม</a><a href="#table">จำนวนสถานะ</a><a href="#sim">ทดลอง</a><a href="#tests">ผลทดสอบ</a><a href="#nfa">NFA</a><a href="#code">Python</a><a href="#summary">สรุป</a>
+</nav>
+<main>
+<header>
+<small>โครงการประยุกต์ใช้ Automata · งานกลุ่ม</small>
+<h1>DFA ตรวจความแข็งแรงของรหัสผ่าน</h1>
+<p class="lead">ออกแบบเครื่องจำกัดสถานะแบบกำหนดแน่นอน (DFA) ที่อ่านรหัสผ่านทีละตัวอักษร แล้วตัดสินว่าผ่านนโยบายความปลอดภัยหรือไม่ พร้อมตัวจำลองที่ดูการเปลี่ยนสถานะได้ทีละขั้น</p>
+<div class="wrap"><table>
+<tr><th>ที่</th><th>ชื่อ–นามสกุล</th><th>รหัส</th></tr>
+<tr><td>1</td><td>นายธีรเดช ภู่มาลา</td><td>6814631011</td></tr>
+<tr><td>2</td><td>นายกมลศักดิ์ สุดาวัน</td><td>6814631001</td></tr>
+<tr><td>3</td><td>นายธนวัฒน์ จารัตน์</td><td>6814631032</td></tr>
+<tr><td>4</td><td>นายวีรภาพ พิมพ์พล</td><td>6814631023</td></tr>
+</table></div>
+</header>
+
+<section id="problem">
+<h2><span>1</span>ปัญหาและนโยบายรหัสผ่าน</h2>
+<p>เว็บไซต์และแอปเกือบทุกแห่งต้องตรวจรหัสผ่านตอนสมัครสมาชิก งานนี้มองนโยบายรหัสผ่านเป็น <b>ภาษา</b> ชุดหนึ่ง แล้วสร้าง DFA ที่ยอมรับเฉพาะสตริงในภาษานั้น ข้อดีคืออ่านอินพุตรอบเดียวจากซ้ายไปขวา ใช้หน่วยความจำคงที่ และแสดงผลได้ทันทีขณะผู้ใช้พิมพ์</p>
+<p><b>ภาษา L<sub>strong</sub></b> คือเซตของรหัสผ่าน w ที่ผ่านครบ 6 ข้อ</p>
+<ol>
+<li>ความยาวอย่างน้อย 8 ตัวอักษร (|w| ≥ 8)</li>
+<li>มีตัวพิมพ์ใหญ่ (U) อย่างน้อย 1 ตัว</li>
+<li>มีตัวพิมพ์เล็ก (L) อย่างน้อย 1 ตัว</li>
+<li>มีตัวเลข (D) อย่างน้อย 1 ตัว</li>
+<li>มีสัญลักษณ์ (S) อย่างน้อย 1 ตัว</li>
+<li>ไม่มีอักขระต้องห้าม (X) เช่น ช่องว่าง หรืออักษรไทย</li>
+</ol>
+</section>
+
+<section id="alphabet">
+<h2><span>2</span>ตัวอักษรของเครื่อง (Σ)</h2>
+<p>แป้นพิมพ์มีอักขระเป็นร้อยตัว ถ้าใช้ทุกตัวเป็นสัญลักษณ์อินพุตตารางจะใหญ่เกินไป จึงแปลงอักขระแต่ละตัวเป็น <b>คลาส</b> ด้วยฟังก์ชัน <code>classify</code> ก่อน อักขระในคลาสเดียวกันทำให้เครื่องเปลี่ยนสถานะเหมือนกัน ผลการยอมรับจึงไม่เปลี่ยน</p>
+<p>Σ = { U, L, D, S, X }</p>
+<div class="wrap"><table>
+<tr><th>คลาส</th><th>ความหมาย</th><th>รหัส ASCII</th><th>ตัวอย่าง</th></tr>
+<tr><td>U</td><td>ตัวพิมพ์ใหญ่</td><td>65–90</td><td>A B … Z</td></tr>
+<tr><td>L</td><td>ตัวพิมพ์เล็ก</td><td>97–122</td><td>a b … z</td></tr>
+<tr><td>D</td><td>ตัวเลข</td><td>48–57</td><td>0 1 … 9</td></tr>
+<tr><td>S</td><td>สัญลักษณ์ที่เหลือ</td><td>33–126 ที่ไม่ใช่ U, L, D</td><td>! @ # $ % _ -</td></tr>
+<tr><td>X</td><td>อักขระต้องห้าม</td><td>อื่น ๆ ทั้งหมด</td><td>ช่องว่าง, ก ข ค, อีโมจิ</td></tr>
+</table></div>
+</section>
+
+<section id="design">
+<h2><span>3</span>แนวคิดการออกแบบ: ต่อ DFA ย่อยเข้าด้วยกัน</h2>
+<p>เงื่อนไขแต่ละข้อเป็นภาษา Regular ที่ทำ DFA ได้ง่าย และภาษา Regular <b>ปิดภายใต้ intersection</b> จึงออกแบบ DFA ย่อยทีละเงื่อนไข แล้วรวมด้วย <b>Product Construction</b> สถานะของเครื่องรวมคือคู่อันดับของสถานะเครื่องย่อยทุกตัว</p>
+<ul>
+<li><b>M<sub>has-x</sub></b> มี 2 สถานะ (<code>no</code>, <code>yes</code>) เปลี่ยนเป็น <code>yes</code> เมื่ออ่านคลาส x และอยู่ที่ <code>yes</code> ตลอด ใช้กับ x ∈ {U, L, D, S}</li>
+<li><b>M<sub>len</sub></b> มี 9 สถานะ นับความยาว 0 ถึง 8+ พอถึง 8 แล้ววนอยู่ที่เดิม เพราะยาว 8 กับยาว 20 ผ่านเงื่อนไขเหมือนกัน</li>
+</ul>
+<p>เครื่องรวม M = M<sub>len</sub> × M<sub>has-U</sub> × M<sub>has-L</sub> × M<sub>has-D</sub> × M<sub>has-S</sub> เพิ่มสถานะ <code>q_dead</code> สำหรับอักขระต้องห้าม เขียนส่วนที่เป็น has-x รวมกันเป็นเซต C ⊆ {U, L, D, S} ของคลาสที่เคยพบ สถานะจึงเขียนสั้น ๆ ได้ว่า <code>q[C, n]</code></p>
+</section>
+
+<section id="formal">
+<h2><span>4</span>นิยามเชิงรูปนัย M = (Q, Σ, δ, q₀, F)</h2>
+<pre>Q  = { q[C, n] | C ⊆ {U,L,D,S}, n ∈ {0,1,…,7,8+} } ∪ { q_dead }
+Σ  = { U, L, D, S, X }
+q₀ = q[∅, 0]
+F  = { q[{U,L,D,S}, 8+] }
+
+δ(q[C, n], x) = q[C ∪ {x}, min(n+1, 8)]   เมื่อ x ∈ {U, L, D, S}
+δ(q[C, n], X) = q_dead
+δ(q_dead, x)  = q_dead                    สำหรับทุก x ∈ Σ</pre>
+<p>เครื่อง <b>Accept</b> สตริง w เมื่ออ่านครบแล้ว δ*(q₀, w) ∈ F ซึ่งเกิดได้กรณีเดียวคือเห็นครบ 4 คลาส ความยาวถึง 8 และไม่เคยเจออักขระต้องห้าม ทุกสถานะมีทางไปพอดี 1 ทางต่อ 1 สัญลักษณ์ จึงเป็น DFA ตามนิยาม</p>
+<p><code>q_dead</code> เป็น <b>trap state</b> เข้าแล้วออกไม่ได้ ต่อให้เคยผ่าน F มาแล้ว เช่น <code>Abcdef1!</code> ถ้าพิมพ์ช่องว่างต่อท้าย ผลก็เป็น Reject</p>
+</section>
+
+<section id="table">
+<h2><span>5</span>จำนวนสถานะ</h2>
+<div class="stats">
+<div><b>145</b>ตามนิยาม (16 × 9 + dead)</div>
+<div><b>105</b>ไปถึงได้จริงจาก q₀</div>
+<div><b>77</b>หลังลดรูป (minimal DFA)</div>
+</div>
+<p><b>ทำไมไปถึงได้แค่ 105:</b> อ่านไป n ตัวจะพบคลาสได้ไม่เกิน n แบบ (|C| ≤ n) เช่น <code>q[ULDS,2]</code> ไม่มีทางเกิดขึ้น</p>
+<p><b>ทำไมลดรูปเหลือ 77:</b> ถ้ายังขาดอีก m คลาสก็ต้องอ่านอีกอย่างน้อย m ตัว สถานะที่มี C เดียวกันและ n ≥ 8 − m จึงทำงานเหมือนกันทุกประการ รวมเป็นสถานะเดียวได้ นับได้ 1 + 20 + 30 + 20 + 5 + 1 (dead) = 77</p>
+</section>
+
+<section id="sim">
+<h2><span>6</span>ตัวจำลองแบบโต้ตอบ</h2>
+<div class="box">
+<p style="margin-top:0">พิมพ์รหัสผ่านทดสอบ แล้วกด "ทีละขั้น" เพื่อดูเครื่องอ่านทีละตัว หรือ "อ่านทั้งหมด" เพื่อดูผลทันที ทุกอย่างทำงานในเบราว์เซอร์ ไม่มีข้อมูลส่งออกไปไหน แต่ไม่ควรใส่รหัสผ่านจริงที่ใช้อยู่</p>
+<input type="text" id="pw" placeholder="พิมพ์รหัสผ่านทดสอบ" autocomplete="off" spellcheck="false" aria-label="รหัสผ่านทดสอบ">
+<div class="row chips" id="chips"></div>
+<div class="row">
+<button onclick="resetSim()">เริ่มใหม่</button>
+<button class="p" onclick="step()">ทีละขั้น</button>
+<button onclick="autoPlay()">เล่นอัตโนมัติ</button>
+<button onclick="readAll()">อ่านทั้งหมด</button>
+</div>
+<div class="state">สถานะปัจจุบัน: <code id="cur">q[-,0]</code> <span class="badge run" id="res">ยังไม่ได้อ่าน</span></div>
+<div class="wrap"><table id="trace"><tr><th>ขั้น</th><th>อักขระ</th><th>คลาส</th><th>สถานะ</th></tr></table></div>
+</div>
+</section>
+
+<section id="tests">
+<h2><span>7</span>ผลการทดสอบ</h2>
+<p>ตารางนี้รันสดในเบราว์เซอร์ด้วยตัวจำลองข้างบน</p>
+<div class="wrap"><table id="tt"><tr><th>สตริง</th><th>จุดที่ทดสอบ</th><th>สถานะสุดท้าย</th><th>คาดหวัง</th><th>ผล</th></tr></table></div>
+<p id="tsum" style="font-weight:600"></p>
+</section>
+
+<section id="nfa">
+<h2><span>8</span>เชื่อมโยงกับ NFA</h2>
+<p>เงื่อนไข "มีตัวเลขอย่างน้อย 1 ตัว" คือภาษา Σ*DΣ* เขียนเป็น NFA ได้เครื่องที่ "เดา" ว่าตัวเลขตัวไหนทำให้ผ่าน ที่ p₀ เมื่ออ่าน D มี 2 ทางเลือก คืออยู่ที่ p₀ ต่อ หรือย้ายไป p₁ แปลงเป็น DFA ด้วย Subset Construction ได้ดังนี้</p>
+<div class="wrap"><table>
+<tr><th>เซตสถานะ</th><th>D</th><th>Σ − {D}</th></tr>
+<tr><td>→ {p₀}</td><td>{p₀, p₁}</td><td>{p₀}</td></tr>
+<tr><td>* {p₀, p₁}</td><td>{p₀, p₁}</td><td>{p₀, p₁}</td></tr>
+</table></div>
+<p>ได้ DFA 2 สถานะ คือ {p₀} = <code>no</code> และ {p₀,p₁} = <code>yes</code> ซึ่งก็คือ M<sub>has-D</sub> ในหัวข้อ 3 พอดี ยืนยันว่า NFA กับ DFA รู้จำภาษาได้เท่ากัน งานนี้เลือก DFA เพราะแต่ละขั้นดูตารางครั้งเดียว ไม่ต้องติดตามเซตของสถานะ</p>
+</section>
+
+<section id="code">
+<h2><span>9</span>โค้ดตัวอย่างการนำไปใช้ด้วย Python</h2>
+<p>โค้ดสร้างตาราง δ อัตโนมัติจากนิยามในหัวข้อ 4 โดยไล่หาสถานะที่ไปถึงได้จาก q₀ มีคลาส <code>DFA</code> ที่นำไปใช้กับเครื่องอื่นได้ มีฟังก์ชันลดรูปแบบ partition refinement และชุดทดสอบ 13 ข้อ ใช้ไลบรารีมาตรฐานของ Python เท่านั้น บันทึกเป็นไฟล์ <code>dfa_password.py</code> แล้วรันได้เลย</p>
+<pre>python dfa_password.py           # พิมพ์รหัสผ่านทดสอบเอง ดูเส้นทางสถานะ
+python dfa_password.py --test   # รันชุดทดสอบ 13 ข้อ
+python dfa_password.py --table  # จำนวนสถานะ 145 / 105 / 77</pre>
+<h3>ตัวอย่างผลลัพธ์</h3>
+<pre>รหัสผ่าน: Ab1!xyz9
+สตริง: 'Ab1!xyz9'
+ขั้น  อักขระ คลาส  สถานะ
+   0  ''           q[-,0]
+   1  'A'    U     q[U,1]
+   2  'b'    L     q[UL,2]
+   3  '1'    D     q[ULD,3]
+   4  '!'    S     q[ULDS,4]
+   5  'x'    L     q[ULDS,5]
+   6  'y'    L     q[ULDS,6]
+   7  'z'    L     q[ULDS,7]
+   8  '9'    D     q[ULDS,8+]
+ผล: ACCEPT (แข็งแรง)</pre>
+<h3>โค้ดทั้งหมด</h3>
+<div class="row"><button onclick="copyCode(this)">คัดลอกโค้ด</button></div>
+<pre id="src">&quot;&quot;&quot;DFA ตรวจความแข็งแรงของรหัสผ่าน (ใช้ Python มาตรฐานเท่านั้น)&quot;&quot;&quot;
+import sys
+
+SIGMA = &quot;ULDSX&quot;
+MAX_LEN = 8
+DEAD = &quot;q_dead&quot;
+
+
+def classify(ch):
+    &quot;&quot;&quot;แปลงอักขระเป็นคลาส U, L, D, S หรือ X&quot;&quot;&quot;
+    c = ord(ch)
+    if 65 &lt;= c &lt;= 90:
+        return &quot;U&quot;
+    if 97 &lt;= c &lt;= 122:
+        return &quot;L&quot;
+    if 48 &lt;= c &lt;= 57:
+        return &quot;D&quot;
+    if 33 &lt;= c &lt;= 126:
+        return &quot;S&quot;
+    return &quot;X&quot;
+
+
+class DFA:
+    def __init__(self, sigma, start, accepting, step):
+        self.sigma, self.start, self.accepting = sigma, start, accepting
+        self.delta = {}            # สร้างตาราง δ จากสถานะที่ไปถึงได้
+        todo, seen = [start], {start}
+        while todo:
+            q = todo.pop()
+            for x in sigma:
+                r = step(q, x)
+                self.delta[(q, x)] = r
+                if r not in seen:
+                    seen.add(r)
+                    todo.append(r)
+        self.states = seen
+
+    def is_accepting(self, q):
+        return self.accepting(q)
+
+    def run(self, symbols):
+        q, path = self.start, [self.start]
+        for x in symbols:
+            q = self.delta[(q, x)]
+            path.append(q)
+        return q, path
+
+    def minimize(self):
+        &quot;&quot;&quot;partition refinement: คืนจำนวนสถานะหลังลดรูป&quot;&quot;&quot;
+        part = {q: self.is_accepting(q) for q in self.states}
+        while True:
+            sig = {q: (part[q], tuple(part[self.delta[(q, x)]] for x in self.sigma))
+                   for q in self.states}
+            ids = {s: i for i, s in enumerate(sorted(set(sig.values()), key=repr))}
+            new = {q: ids[sig[q]] for q in self.states}
+            if len(set(new.values())) == len(set(part.values())):
+                return len(set(new.values()))
+            part = new
+
+
+def name(q):
+    if q == DEAD:
+        return DEAD
+    c, n = q
+    return &quot;q[%s,%s]&quot; % (c or &quot;-&quot;, &quot;8+&quot; if n &gt;= MAX_LEN else n)
+
+
+def step(q, x):
+    if q == DEAD or x == &quot;X&quot;:
+        return DEAD
+    c, n = q
+    c = &quot;&quot;.join(k for k in &quot;ULDS&quot; if k in c or k == x)
+    return (c, min(n + 1, MAX_LEN))
+
+
+M = DFA(SIGMA, (&quot;&quot;, 0), lambda q: q != DEAD and len(q[0]) == 4 and q[1] &gt;= MAX_LEN, step)
+
+
+def check(password, verbose=False):
+    q, path = M.run(classify(ch) for ch in password)
+    if verbose:
+        print(&quot;สตริง: %r&quot; % password)
+        print(&quot;ขั้น  อักขระ คลาส  สถานะ&quot;)
+        print(&quot;%4d  %-6r %-5s %s&quot; % (0, &quot;&quot;, &quot;&quot;, name(path[0])))
+        for i, ch in enumerate(password, 1):
+            print(&quot;%4d  %-6r %-5s %s&quot; % (i, ch, classify(ch), name(path[i])))
+    return M.is_accepting(q)
+
+
+TESTS = [
+    (&quot;&quot;, False), (&quot;abc&quot;, False), (&quot;abcdefgh&quot;, False), (&quot;Abcdefg1&quot;, False),
+    (&quot;Abc1!&quot;, False), (&quot;Abcdef1!&quot;, True), (&quot;Ab1!xyz9&quot;, True), (&quot;Abc def1!&quot;, False),
+    (&quot;Abcdef1!x&quot;, True), (&quot;Abcdef1! &quot;, False), (&quot;P@ssw0rd2026&quot;, True),
+    (&quot;รหัสผ่านAb1!xyz&quot;, False), (&quot;ABCDEFG1!&quot;, False),
+]
+
+
+def run_tests():
+    ok = 0
+    for w, exp in TESTS:
+        got = check(w)
+        ok += got == exp
+        print(&quot;%-4s %r&quot; % (&quot;ผ่าน&quot; if got == exp else &quot;FAIL&quot;, w))
+    print(&quot;ผลรวม: %d/%d&quot; % (ok, len(TESTS)))
+
+
+def show_table():
+    print(&quot;ตามนิยาม      :&quot;, 16 * 9 + 1)
+    print(&quot;ไปถึงได้จริง   :&quot;, len(M.states))
+    print(&quot;หลังลดรูป      :&quot;, M.minimize())
+
+
+if __name__ == &quot;__main__&quot;:
+    if &quot;--test&quot; in sys.argv:
+        run_tests()
+    elif &quot;--table&quot; in sys.argv:
+        show_table()
+    else:
+        pw = input(&quot;รหัสผ่าน: &quot;)
+        print(&quot;ผล:&quot;, &quot;ACCEPT (แข็งแรง)&quot; if check(pw, True) else &quot;REJECT&quot;)
+</pre>
+</section>
+
+<section id="summary">
+<h2><span>10</span>สรุปและข้อจำกัด</h2>
+<ul>
+<li>นโยบายรหัสผ่านทั่วไปเป็นภาษา Regular ตรวจด้วย DFA ได้ รอบเดียว เวลา O(|w|) หน่วยความจำคงที่</li>
+<li>แยกเงื่อนไขเป็น DFA ย่อยแล้วรวมด้วย Product Construction ทำให้ออกแบบและตรวจได้ทีละส่วน เพิ่มเงื่อนไขใหม่ก็คูณ DFA ย่อยเพิ่ม</li>
+<li>การจัดอักขระเป็นคลาสทำให้ Σ เหลือ 5 ตัว ตารางมี 105 × 5 = 525 ช่อง</li>
+<li><b>ข้อจำกัด:</b> เงื่อนไขอย่าง "ห้ามซ้ำกับชื่อผู้ใช้" ต้องใช้ข้อมูลภายนอก จึงตรวจนอก DFA ส่วนการเช็กรายการรหัสที่รั่วไหลทำเป็น DFA ได้ในทฤษฎีแต่สถานะมหาศาล ในทางปฏิบัติใช้ hash set ดีกว่า</li>
+<li>รหัสที่ผ่าน DFA นี้แค่ <i>ตรงตามนโยบาย</i> ไม่ได้แปลว่าเดายาก เช่น <code>Password1!</code> ก็ผ่าน ระบบจริงควรตรวจรหัสยอดนิยมร่วมด้วย</li>
+</ul>
+</section>
+<footer>โครงการประยุกต์ใช้ Automata · DFA ตรวจความแข็งแรงของรหัสผ่าน</footer>
+</main>
+<script>
+function copyCode(b){const t=document.getElementById("src").textContent;
+ const done=ok=>{b.textContent=ok?"คัดลอกแล้ว":"คัดลอกไม่ได้ ลองเลือกข้อความเอง"};
+ try{navigator.clipboard.writeText(t).then(()=>done(true),()=>done(false))}catch(e){done(false)}}
+const ORDER="ULDS";
+function cls(ch){const c=ch.codePointAt(0);
+ if(c>=65&&c<=90)return"U";if(c>=97&&c<=122)return"L";if(c>=48&&c<=57)return"D";
+ if(c>=33&&c<=126)return"S";return"X"}
+const DEAD="q_dead";
+function name(C,n){return"q["+(C||"-")+","+(n>=8?"8+":n)+"]"}
+function delta(st,x){
+ if(st.dead||x==="X")return{dead:true};
+ let C=st.C;if(!C.includes(x))C=ORDER.split("").filter(k=>C.includes(k)||k===x).join("");
+ return{C,n:Math.min(st.n+1,8)}}
+const init=()=>({C:"",n:0});
+const label=s=>s.dead?DEAD:name(s.C,s.n);
+const accept=s=>!s.dead&&s.C.length===4&&s.n>=8;
+function run(w){let s=init();for(const ch of w)s=delta(s,cls(ch));return s}
+
+let st=init(),pos=0,chars=[],timer=null;
+const $=id=>document.getElementById(id);
+function show(done){
+ $("cur").textContent=label(st);
+ const r=$("res");
+ if(pos===0){r.className="badge run";r.textContent="ยังไม่ได้อ่าน"}
+ else if(pos<chars.length){r.className="badge run";r.textContent="กำลังอ่าน"}
+ else{r.className="badge "+(accept(st)?"acc":"rej");r.textContent=accept(st)?"ACCEPT (แข็งแรง)":"REJECT"}
+}
+function resetSim(){clearInterval(timer);chars=[...$("pw").value];st=init();pos=0;
+ $("trace").innerHTML="<tr><th>ขั้น</th><th>อักขระ</th><th>คลาส</th><th>สถานะ</th></tr><tr><td>0</td><td></td><td></td><td>"+label(st)+"</td></tr>";show()}
+function step(){
+ if(pos===0)chars=[...$("pw").value];
+ if(pos>=chars.length){show();return false}
+ const ch=chars[pos],c=cls(ch);st=delta(st,c);pos++;
+ const t=$("trace").insertRow();
+ [pos,JSON.stringify(ch).slice(1,-1)||ch,c,label(st)].forEach(v=>t.insertCell().textContent=v);
+ show();return pos<chars.length}
+function readAll(){resetSim();while(step());}
+function autoPlay(){resetSim();timer=setInterval(()=>{if(!step())clearInterval(timer)},450)}
+$("pw").addEventListener("input",resetSim);
+["abc","abcdefgh","Abcdefg1","Abc1!","Abcdef1!","Abc def1!","P@ssw0rd2026"].forEach(s=>{
+ const b=document.createElement("button");b.textContent=s;
+ b.onclick=()=>{$("pw").value=s;readAll()};$("chips").appendChild(b)});
+
+const tests=[
+["","สตริงว่าง","reject"],["abc","สั้นและขาดคลาส","reject"],["abcdefgh","ยาวพอ แต่มีคลาสเดียว","reject"],
+["Abcdefg1","ขาดสัญลักษณ์","reject"],["Abc1!","ครบ 4 คลาส แต่สั้น (5 ตัว)","reject"],
+["Abcdef1!","ยาว 8 พอดี ครบทุกคลาส","accept"],["Ab1!xyz9","ตัวอย่างหลัก","accept"],
+["Abc def1!","มีช่องว่าง","reject"],["Abcdef1!x","ผ่านแล้วต่อได้อีก","accept"],
+["Abcdef1! ","ผ่านแล้วค่อยเจอช่องว่าง (trap)","reject"],["P@ssw0rd2026","ผ่านนโยบาย แม้เดาง่าย","accept"],
+["รหัสผ่านAb1!xyz","อักษรไทย","reject"],["ABCDEFG1!","ขาดตัวพิมพ์เล็ก","reject"]];
+let pass=0;
+tests.forEach(([w,note,exp])=>{
+ const s=run(w),got=accept(s)?"accept":"reject",ok=got===exp;if(ok)pass++;
+ const r=$("tt").insertRow();
+ const c0=r.insertCell();c0.innerHTML="<code></code>";c0.firstChild.textContent=w===""?"(ว่าง)":w.replace(/ /g,"␣");
+ r.insertCell().textContent=note;r.insertCell().textContent=label(s);r.insertCell().textContent=exp;
+ const c4=r.insertCell();c4.textContent=ok?"ผ่าน":"ไม่ผ่าน";c4.className=ok?"ok":"no"});
+$("tsum").textContent="ผลรวม: ผ่าน "+pass+"/"+tests.length+" ข้อ";
+resetSim();
+</script>
+</body>
+</html>
